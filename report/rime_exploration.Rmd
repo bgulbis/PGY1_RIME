@@ -85,3 +85,32 @@ rime %>%
     theme_tufte() +
     theme(axis.line = element_line(color = "light gray"), panel.border = element_rect(fill = NA, color = "light gray"), axis.ticks = element_line(color = "light gray"), axis.title = element_text(color = "gray35"), legend.text = element_text(color = "gray35"), strip.text = element_text(color = "gray35"), strip.text.y = element_text(angle = 180))
 ```
+
+```{r, fig.width=8, fig.height=7, fig.cap="Distribution of RIME scores by preceptor"}
+x <- rime %>%
+    gather(skill, score, reporter:educator) %>%
+    filter(!is.na(score)) %>%
+    dmap_at("skill", fct_inorder) %>%
+    dmap_at("preceptor", ~ "Combined") %>%
+    dmap_at("preceptor", factor) 
+
+rime %>%
+    gather(skill, score, reporter:educator) %>%
+    filter(!is.na(score)) %>%
+    bind_rows(x) %>%
+    dmap_at("skill", fct_inorder) %>%
+    dmap_at("preceptor", as_factor) %>%
+    mutate(preceptor = fct_reorder(preceptor, x = score, fun = median, .desc = TRUE)) %>%
+    dmap_at("preceptor", ~ fct_relevel(.x, "Combined", after = Inf)) %>%
+    ggplot(aes(x = preceptor, y = score)) +
+    geom_boxplot() +
+    # geom_boxplot(data = x, aes(x = fct_reorder(preceptor, score, .desc = TRUE))) +
+    facet_wrap(~ skill, ncol = 4, labeller = labeller(skill = capitalize)) +
+    ylab("RIME Score") +
+    xlab("") +
+    coord_flip() +
+    theme_tufte() +
+    theme(axis.line = element_line(color = "light gray"), panel.border = element_rect(fill = NA, color = "light gray"), axis.ticks = element_line(color = "light gray"), axis.title = element_text(color = "gray35"), legend.text = element_text(color = "gray35"), strip.text = element_text(color = "gray35"), strip.text.y = element_text(angle = 180))
+
+```
+
