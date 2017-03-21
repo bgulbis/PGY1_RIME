@@ -1,0 +1,87 @@
+---
+title: "RIME Scores"
+author: "Brian Gulbis"
+date: "March 21, 2017"
+output: 
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(forcats)
+library(ggthemes)
+library(Hmisc)
+
+rime <- list.files("../data/raw", "rime-scores", full.names = TRUE) %>%
+    map_df(read_excel) 
+
+residents_2016 <- c("Franco, Elizabeth", "Gomez, Leigh", "Kuhl, Stephanie", "Lee, Monica", "Nayar, Vijay", "Sobhanian, Minoosh")
+
+residents_2017 <- c("Fetea, Andrea", "Jackson, Kaysie", "Krueger, Chelsea", "Kusey, Kathleen", "Moore, Megan", "Raduzycki, Tyler")
+```
+
+```{r, fig.cap="Change in RIME scores over time"}
+rime %>%
+    gather(skill, score, reporter:educator) %>%
+    filter(!is.na(score),
+           resident %in% residents_2016) %>%
+    dmap_at("skill", fct_inorder) %>%
+    ggplot(aes(x = month, y = score, color = skill)) +
+    geom_line() +
+    geom_smooth(size = 0.5, se = FALSE, method = "lm", linetype = "dashed") +
+    facet_wrap(~ resident) +
+    scale_color_brewer("", palette = "Dark2", labels = capitalize) +
+    scale_x_datetime("", date_breaks = "2 months", date_labels = "%b") +
+    ylab("RIME Score") +
+    theme_tufte() +
+    theme(axis.line = element_line(color = "light gray"), axis.ticks = element_line(color = "light gray"), axis.title = element_text(color = "gray35"), legend.text = element_text(color = "gray35"), strip.text = element_text(color = "gray35"))
+```
+
+```{r, fig.height=7, fig.cap="Change in RIME score relative to previous rotation"}
+rime %>%
+    gather(skill, score, reporter:educator) %>%
+    filter(!is.na(score),
+           resident %in% residents_2016) %>%
+    spread(skill, score) %>%
+    group_by(resident) %>%
+    mutate_at(c("reporter", "interpreter", "manager", "educator"), funs(. - lag(.))) %>%
+    ungroup() %>%
+    gather(skill, score, reporter, interpreter, manager, educator) %>%
+    dmap_at("skill", fct_inorder) %>%
+    ggplot(aes(x = month, y = score)) +
+    geom_bar(stat = "identity") +
+    geom_hline(yintercept = 0, size = 0.5, color = "light gray") +
+    facet_grid(resident ~ skill, switch = "y", labeller = labeller(skill = capitalize)) +
+    scale_x_datetime("", date_breaks = "2 months", date_labels = "%b") +
+    scale_y_continuous("Change", position = "right") +
+    theme_tufte() +
+    theme(axis.line = element_line(color = "light gray"), panel.border = element_rect(fill = NA, color = "light gray"), axis.ticks = element_line(color = "light gray"), axis.title = element_text(color = "gray35"), legend.text = element_text(color = "gray35"), strip.text = element_text(color = "gray35"), strip.text.y = element_text(angle = 180))
+```
+
+```{r, fig.height=7, fig.cap="Change in RIME score relative to first rotation"}
+rime %>%
+    gather(skill, score, reporter:educator) %>%
+    filter(!is.na(score),
+           resident %in% residents_2016) %>%
+    spread(skill, score) %>%
+    group_by(resident) %>%
+    mutate_at(c("reporter", "interpreter", "manager", "educator"), funs(. - first(.))) %>%
+    ungroup() %>%
+    gather(skill, score, reporter, interpreter, manager, educator) %>%
+    dmap_at("skill", fct_inorder) %>%
+    ggplot(aes(x = month, y = score)) +
+    geom_bar(stat = "identity") +
+    geom_hline(yintercept = 0, size = 0.5, color = "light gray") +
+    facet_grid(resident ~ skill, switch = "y", labeller = labeller(skill = capitalize)) +
+    scale_x_datetime("", date_breaks = "2 months", date_labels = "%b") +
+    scale_y_continuous("Change", position = "right") +
+    theme_tufte() +
+    theme(axis.line = element_line(color = "light gray"), panel.border = element_rect(fill = NA, color = "light gray"), axis.ticks = element_line(color = "light gray"), axis.title = element_text(color = "gray35"), legend.text = element_text(color = "gray35"), strip.text = element_text(color = "gray35"), strip.text.y = element_text(angle = 180))
+```
