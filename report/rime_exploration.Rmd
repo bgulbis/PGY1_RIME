@@ -9,7 +9,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning=FALSE)
+knitr::opts_chunk$set(warning=FALSE)
 ```
 
 ```{r, message=FALSE}
@@ -17,7 +17,7 @@ library(tidyverse)
 library(readxl)
 library(stringr)
 library(forcats)
-library(ggthemes)
+library(themebg)
 library(Hmisc)
 
 rime <- list.files("../data/raw", "rime-scores", full.names = TRUE) %>%
@@ -41,8 +41,7 @@ rime %>%
     scale_color_brewer("", palette = "Dark2", labels = capitalize) +
     scale_x_datetime("", date_breaks = "2 months", date_labels = "%b") +
     ylab("RIME Score") +
-    theme_tufte() +
-    theme(axis.line = element_line(color = "light gray"), axis.ticks = element_line(color = "light gray"), axis.title = element_text(color = "gray35"), legend.text = element_text(color = "gray35"), strip.text = element_text(color = "gray35"))
+    theme_bg() 
 ```
 
 ```{r, fig.height=7, fig.cap="Change in RIME score relative to previous rotation"}
@@ -62,8 +61,8 @@ rime %>%
     facet_grid(resident ~ skill, switch = "y", labeller = labeller(skill = capitalize)) +
     scale_x_datetime("", date_breaks = "2 months", date_labels = "%b") +
     scale_y_continuous("Change", position = "right") +
-    theme_tufte() +
-    theme(axis.line = element_line(color = "light gray"), panel.border = element_rect(fill = NA, color = "light gray"), axis.ticks = element_line(color = "light gray"), axis.title = element_text(color = "gray35"), legend.text = element_text(color = "gray35"), strip.text = element_text(color = "gray35"), strip.text.y = element_text(angle = 180))
+    theme_bg() +
+    theme(strip.text.y = element_text(angle = 180))
 ```
 
 ```{r, fig.height=7, fig.cap="Change in RIME score relative to first rotation"}
@@ -83,8 +82,8 @@ rime %>%
     facet_grid(resident ~ skill, switch = "y", labeller = labeller(skill = capitalize)) +
     scale_x_datetime("", date_breaks = "2 months", date_labels = "%b") +
     scale_y_continuous("Change", position = "right") +
-    theme_tufte() +
-    theme(axis.line = element_line(color = "light gray"), panel.border = element_rect(fill = NA, color = "light gray"), axis.ticks = element_line(color = "light gray"), axis.title = element_text(color = "gray35"), legend.text = element_text(color = "gray35"), strip.text = element_text(color = "gray35"), strip.text.y = element_text(angle = 180))
+    theme_bg() +
+    theme(strip.text.y = element_text(angle = 180))
 ```
 
 ```{r, fig.cap="Distribution of RIME Scores by Role"}
@@ -97,9 +96,7 @@ rime %>%
     geom_boxplot() +
     xlab("") +
     ylab("RIME Score") +
-    theme_tufte() +
-    theme(axis.line = element_line(color = "light gray"), panel.border = element_blank(), axis.ticks.x = element_blank(), axis.ticks.y = element_line(color = "light gray"), axis.title = element_text(color = "gray35"))
-    
+    theme_bg(xticks = FALSE)
 ```
 
 
@@ -112,12 +109,10 @@ x <- rime %>%
     dmap_at("preceptor", factor) 
 
 iq_range <- x %>%
-    # spread(skill, score) %>%
     group_by(skill) %>%
     summarize_if(is.numeric, funs(q2 = quantile(., probs = 0.25), q3 = quantile(., probs = 0.75))) 
-    # gather(quant, val, q2, q3)
 
-rime %>%
+df <- rime %>%
     gather(skill, score, reporter:educator) %>%
     filter(!is.na(score)) %>%
     bind_rows(x) %>%
@@ -125,16 +120,53 @@ rime %>%
     dmap_at("preceptor", as_factor) %>%
     mutate(preceptor = fct_reorder(preceptor, x = score, fun = median, .desc = TRUE)) %>%
     dmap_at("preceptor", ~ fct_relevel(.x, "Combined", after = Inf)) %>%
-    inner_join(iq_range, by = "skill") %>%
-    ggplot(aes(x = preceptor, y = score)) +
-    geom_rect(aes(xmin = "Combined", xmax = "Mariski, Mark", ymin = q2, ymax = q3), fill = "light gray") +
+    inner_join(iq_range, by = "skill")
+
+ggplot(data = df, aes(x = preceptor, y = score)) +
+    geom_rect(aes(xmin = levels(df$preceptor)[nlevels(df$preceptor)], xmax = levels(df$preceptor)[1], ymin = q2, ymax = q3), fill = "light gray") +
     geom_boxplot() +
     facet_wrap(~ skill, ncol = 4, labeller = labeller(skill = capitalize)) +
     ylab("RIME Score") +
     xlab("") +
     labs(caption = "The shaded area represents the 25th to 75th percentile for all preceptors combined.") +
     coord_flip() +
-    theme_tufte() +
-    theme(axis.line = element_line(color = "light gray"), panel.border = element_rect(fill = NA, color = "light gray"), axis.ticks = element_line(color = "light gray"), axis.title = element_text(color = "gray35"), legend.text = element_text(color = "gray35"), strip.text = element_text(color = "gray35"), strip.text.y = element_text(angle = 180), plot.caption = element_text(color = "gray35"))
+    theme_bg() +
+    theme(panel.border = element_rect(fill = NA, color = "light gray"), 
+          strip.text.y = element_text(angle = 180))
 ```
 
+
+```{r, fig.width=8, fig.height=7, fig.cap="Distribution of RIME scores by rotation"}
+x <- rime %>%
+    gather(skill, score, reporter:educator) %>%
+    filter(!is.na(score)) %>%
+    dmap_at("skill", fct_inorder) %>%
+    dmap_at("rotation", ~ "Combined") %>%
+    dmap_at("rotation", factor) 
+
+iq_range <- x %>%
+    group_by(skill) %>%
+    summarize_if(is.numeric, funs(q2 = quantile(., probs = 0.25), q3 = quantile(., probs = 0.75))) 
+
+df <- rime %>%
+    gather(skill, score, reporter:educator) %>%
+    filter(!is.na(score)) %>%
+    bind_rows(x) %>%
+    dmap_at("skill", fct_inorder) %>%
+    dmap_at("rotation", as_factor) %>%
+    mutate(rotation = fct_reorder(rotation, x = score, fun = median, .desc = TRUE)) %>%
+    dmap_at("rotation", ~ fct_relevel(.x, "Combined", after = Inf)) %>%
+    inner_join(iq_range, by = "skill")
+
+ggplot(data = df, aes(x = rotation, y = score)) +
+    geom_rect(aes(xmin = levels(df$rotation)[nlevels(df$rotation)], xmax = levels(df$rotation)[1], ymin = q2, ymax = q3), fill = "light gray") +
+    geom_boxplot() +
+    facet_wrap(~ skill, ncol = 4, labeller = labeller(skill = capitalize)) +
+    ylab("RIME Score") +
+    xlab("") +
+    labs(caption = "The shaded area represents the 25th to 75th percentile for all rotations combined.") +
+    coord_flip() +
+    theme_bg() +
+    theme(panel.border = element_rect(fill = NA, color = "light gray"), 
+          strip.text.y = element_text(angle = 180))
+```
