@@ -1,5 +1,5 @@
 ---
-title: "Exploratory Analysis of RIME Scores"
+title: "Resident RIME Scores 2016-2017"
 author: "Brian Gulbis"
 date: '`r format(Sys.Date(), "%B %d, %Y")`'
 output: 
@@ -23,16 +23,14 @@ library(Hmisc)
 rime <- list.files("../data/raw", "rime-scores", full.names = TRUE) %>%
     map_df(read_excel) 
 
-residents_2016 <- c("Franco, Elizabeth", "Gomez, Leigh", "Kuhl, Stephanie", "Lee, Monica", "Nayar, Vijay", "Sobhanian, Minoosh")
-
-residents_2017 <- c("Fetea, Andrea", "Jackson, Kaysie", "Krueger, Chelsea", "Kusey, Kathleen", "Moore, Megan", "Raduzycki, Tyler")
+residents <- c("Fetea, Andrea", "Jackson, Kaysie", "Krueger, Chelsea", "Kusey, Kathleen", "Moore, Megan", "Raduzycki, Tyler")
 ```
 
 ```{r, fig.cap="Change in RIME scores over time"}
 rime %>%
     gather(skill, score, reporter:educator) %>%
     filter(!is.na(score),
-           resident %in% residents_2016) %>%
+           resident %in% residents) %>%
     dmap_at("skill", fct_inorder) %>%
     ggplot(aes(x = month, y = score, color = skill)) +
     geom_line() +
@@ -48,7 +46,7 @@ rime %>%
 rime %>%
     gather(skill, score, reporter:educator) %>%
     filter(!is.na(score),
-           resident %in% residents_2016) %>%
+           resident %in% residents) %>%
     spread(skill, score) %>%
     group_by(resident) %>%
     mutate_at(c("reporter", "interpreter", "manager", "educator"), funs(. - lag(.))) %>%
@@ -69,7 +67,7 @@ rime %>%
 rime %>%
     gather(skill, score, reporter:educator) %>%
     filter(!is.na(score),
-           resident %in% residents_2016) %>%
+           resident %in% residents) %>%
     spread(skill, score) %>%
     group_by(resident) %>%
     mutate_at(c("reporter", "interpreter", "manager", "educator"), funs(. - first(.))) %>%
@@ -84,89 +82,4 @@ rime %>%
     scale_y_continuous("Change", position = "right") +
     theme_bg() +
     theme(strip.text.y = element_text(angle = 180))
-```
-
-```{r, fig.cap="Distribution of RIME Scores by Role"}
-rime %>%
-    gather(skill, score, reporter:educator) %>%
-    filter(!is.na(score)) %>%
-    dmap_at("skill", str_to_title) %>%
-    dmap_at("skill", fct_inorder) %>%
-    ggplot(aes(x = skill, y = score)) +
-    geom_boxplot() +
-    xlab("") +
-    ylab("RIME Score") +
-    theme_bg(xticks = FALSE)
-```
-
-
-```{r, fig.width=8, fig.height=7, fig.cap="Distribution of RIME scores by preceptor"}
-x <- rime %>%
-    gather(skill, score, reporter:educator) %>%
-    filter(!is.na(score)) %>%
-    dmap_at("skill", fct_inorder) %>%
-    dmap_at("preceptor", ~ "Combined") %>%
-    dmap_at("preceptor", factor) 
-
-iq_range <- x %>%
-    group_by(skill) %>%
-    summarize_if(is.numeric, funs(q2 = quantile(., probs = 0.25), q3 = quantile(., probs = 0.75))) 
-
-df <- rime %>%
-    gather(skill, score, reporter:educator) %>%
-    filter(!is.na(score)) %>%
-    bind_rows(x) %>%
-    dmap_at("skill", fct_inorder) %>%
-    dmap_at("preceptor", as_factor) %>%
-    mutate(preceptor = fct_reorder(preceptor, x = score, fun = median, .desc = TRUE)) %>%
-    dmap_at("preceptor", ~ fct_relevel(.x, "Combined", after = Inf)) %>%
-    inner_join(iq_range, by = "skill")
-
-ggplot(data = df, aes(x = preceptor, y = score)) +
-    geom_rect(aes(xmin = levels(df$preceptor)[nlevels(df$preceptor)], xmax = levels(df$preceptor)[1], ymin = q2, ymax = q3), fill = "light gray") +
-    geom_boxplot() +
-    facet_wrap(~ skill, ncol = 4, labeller = labeller(skill = capitalize)) +
-    ylab("RIME Score") +
-    xlab("") +
-    labs(caption = "The shaded area represents the 25th to 75th percentile for all preceptors combined.") +
-    coord_flip() +
-    theme_bg() +
-    theme(panel.border = element_rect(fill = NA, color = "light gray"), 
-          strip.text.y = element_text(angle = 180))
-```
-
-
-```{r, fig.width=8, fig.height=7, fig.cap="Distribution of RIME scores by rotation"}
-x <- rime %>%
-    gather(skill, score, reporter:educator) %>%
-    filter(!is.na(score)) %>%
-    dmap_at("skill", fct_inorder) %>%
-    dmap_at("rotation", ~ "Combined") %>%
-    dmap_at("rotation", factor) 
-
-iq_range <- x %>%
-    group_by(skill) %>%
-    summarize_if(is.numeric, funs(q2 = quantile(., probs = 0.25), q3 = quantile(., probs = 0.75))) 
-
-df <- rime %>%
-    gather(skill, score, reporter:educator) %>%
-    filter(!is.na(score)) %>%
-    bind_rows(x) %>%
-    dmap_at("skill", fct_inorder) %>%
-    dmap_at("rotation", as_factor) %>%
-    mutate(rotation = fct_reorder(rotation, x = score, fun = median, .desc = TRUE)) %>%
-    dmap_at("rotation", ~ fct_relevel(.x, "Combined", after = Inf)) %>%
-    inner_join(iq_range, by = "skill")
-
-ggplot(data = df, aes(x = rotation, y = score)) +
-    geom_rect(aes(xmin = levels(df$rotation)[nlevels(df$rotation)], xmax = levels(df$rotation)[1], ymin = q2, ymax = q3), fill = "light gray") +
-    geom_boxplot() +
-    facet_wrap(~ skill, ncol = 4, labeller = labeller(skill = capitalize)) +
-    ylab("RIME Score") +
-    xlab("") +
-    labs(caption = "The shaded area represents the 25th to 75th percentile for all rotations combined.") +
-    coord_flip() +
-    theme_bg() +
-    theme(panel.border = element_rect(fill = NA, color = "light gray"), 
-          strip.text.y = element_text(angle = 180))
 ```
